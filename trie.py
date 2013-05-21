@@ -1,3 +1,8 @@
+def gen_alphabet():
+    """ Generator for alphabet characters. """
+    for x in list(xrange(ord('a'),ord('z')+1)):
+        yield chr(x)
+
 class trienode:
     """ Nodes for prefix and postfix tries. 'exists' flag denotes if complete word terminates with it. """
     def __init__(self, pre = True, exists = True):
