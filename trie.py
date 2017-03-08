@@ -1,64 +1,75 @@
-def gen_alphabet():
-    """ Generator for alphabet characters. """
-    for x in list(xrange(ord('a'),ord('z')+1)):
-        yield chr(x)
+"""
+    Text Trie (prefix and postfix) class for string storage. Provides a set of strings with optimized storage and lookup.
 
-class trienode:
-    """ Nodes for prefix and postfix tries. 'exists' flag denotes if complete word terminates with it. """
-    def __init__(self, pre = True, exists = True):
+    Trie storage optimizes lookup times after adding words to the trie by combining common substrings, then performing a (singlei- or multi-) character-level comparison scan with the member in question.
+"""
+
+import re
+
+# TODO implement path compression
+class Trie:
+    """ Nodes for prefix and postfix tries. 'is_word' flag denotes if complete word terminates with it. """
+    def __init__(self, pre = True, is_word = False):
         self.branches = {}
-        self.exists = exists
+        self.is_word = is_word
         self.pre = pre
 
-    def add_branch(self, char, pre, exists = True):
-        self.branches[char] = trienode(pre, exists)
-
-    def grow(self, wordset):
-        self.branches.clear()
-
         if self.pre:
-            def sub_set(s,p):
-                return set([x[1:] for x in s if x and x[0] == p])
-                # re.match('^'+p+'.*',x)
+            def sub_set(wordset,letter):
+                return set([word[1:] for word in wordset if word and word[0] == letter])
         else:
-            def sub_set(s,p):
-                return set([x[:-1] for x in s if x and x[-1] == p])
+            def sub_set(wordset,letter):
+                return set([word[:-1] for word in wordset if word and word[-1] == letter])
 
-        for letter in gen_alphabet():
-            p = sub_set(wordset,letter)
+        self.sub_set = sub_set
+
+    def _add_branch(self, char, is_word):
+        self.branches[char] = Trie(self.pre, is_word)
+
+    def _gen_alphabet(self):
+        """ Generator for alphabet characters. """
+        for x in list(xrange(ord('a'),ord('z')+1)):
+            yield chr(x)
+
+    def insert(self,wordset):
+        """ Add a single word or an iterable of text strings """
+        if isinstance(wordset,basestring):
+            wordset = [wordset]
+        for letter in self._gen_alphabet():
+            p = self.sub_set(wordset,letter)
             if p:
-                # '' in p means the set contained a word which has been spelled
-                self.add_branch(letter,self.pre,'' in p)
-                self.branches[letter].grow(p)
+                if not self.branches.has_key(letter):
+                    # '' in p means the set contained a word which has been spelled
+                    self._add_branch(letter,'' in p)
+                self.branches[letter].insert(p)
 
     def check(self,word):
-        """ If word is reachable from this node, return resulting node. """
+        """ If word is reachable from this trie, return resulting trie. """
         if self.pre:
             def sub_word(chars):
                 if re.match('^'+chars+'.*',word):
                     return word[len(chars):]
                 else:
-                    return None
+                    return False
         else:
             def sub_word(chars):
                 if re.match('^.*'+chars+'$',word):
                     return word[:-len(chars)]
                 else:
-                    return None
+                    return False
 
         if word == '':
-            return self
+            return True
         for chars in self.branches.keys():
             res =  sub_word(chars)
             if res:
                 return self.branches[chars].check(res)
             elif res == '':
-                return self.branches[chars]
-        return None
+                return True
+        return False
 
     def get_words(self, chars = None):
-        """ Return all existing words derived from this node, with prefix chars.
-        """
+        """ Return all existing words derived from this trie with prefix chars """
         if not self.branches.keys():
             return ['']
 
@@ -76,9 +87,9 @@ class trienode:
             else:
                 return []
 
-        # If this node marks an existing word, pass back empty string to parent
-        # nodes to rebuild this word separately from any derived compound words
-        if self.exists:
+        # If this trie marks an existing word, pass back empty string to parent
+        # tries to rebuild this word separately from any derived compound words
+        if self.is_word:
             selfwordmarker = ['']
         else:
             selfwordmarker = []
@@ -89,7 +100,7 @@ class trienode:
                 for word in sublist] + selfwordmarker
 
     def __repr__(self):
-        if self.exists:
+        if self.is_word:
             xst = 'Is a word.  '
         else:
             xst = 'Non-word. '
